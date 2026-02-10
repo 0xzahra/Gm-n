@@ -43,8 +43,9 @@ export const analyzeImageAndGenerateCaptions = async (
       Output JSON: { detectedContext: string, captions: [{text, mood}] }
     `;
 
+    // Using gemini-3-flash-preview for faster response on text/multimodal tasks
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: {
         parts: [
           { inlineData: { mimeType: "image/jpeg", data: base64Image.split(",")[1] } },

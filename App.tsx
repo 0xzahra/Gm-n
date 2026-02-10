@@ -67,9 +67,9 @@ const OpusIntro = ({ onComplete }: { onComplete: () => void }) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[100] bg-neo-darker flex flex-col items-center justify-center overflow-hidden pointer-events-auto"
+      className="fixed inset-0 z-[100] bg-neo-darker flex flex-col items-center justify-center overflow-hidden"
       initial={{ opacity: 1 }}
-      exit={{ opacity: 0, pointerEvents: 'none', transition: { duration: 0.8, ease: "easeInOut" } }}
+      exit={{ opacity: 0, transition: { duration: 0.8, ease: "easeInOut" } }}
     >
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,255,65,0.08)_0%,transparent_70%)]" />
@@ -311,6 +311,9 @@ const App: React.FC = () => {
   const [showDictionary, setShowDictionary] = useState(false);
   const [randomQuote, setRandomQuote] = useState(WEB3_QUOTES[0]);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [sharingId, setSharingId] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const random = WEB3_QUOTES[Math.floor(Math.random() * WEB3_QUOTES.length)];
@@ -390,12 +393,18 @@ const App: React.FC = () => {
 
     try {
       const tagLabels = selectedTags.map(id => SHORTCUTS.find(s => s.id === id)?.label || "");
-      const result = await analyzeImageAndGenerateCaptions(image, mode, tagLabels);
+      
+      // Add a 20s timeout to prevent infinite loading state
+      const analysisPromise = analyzeImageAndGenerateCaptions(image, mode, tagLabels);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 20000));
+      
+      const result = await Promise.race([analysisPromise, timeoutPromise]) as any;
+      
       setDetectedContext(result.context);
       setCaptions(result.captions);
     } catch (error) {
       console.error("Signal Generation Failed:", error);
-      setDetectedContext("System Error");
+      setDetectedContext("System Error - Try Again");
     } finally {
       setIsScanning(false);
     }
@@ -438,7 +447,6 @@ const App: React.FC = () => {
      }
 
      if (platform === 'twitter') {
-        // Try copying image first
         if (imageUrl) {
           try {
             const response = await fetch(imageUrl);
@@ -455,12 +463,7 @@ const App: React.FC = () => {
      }
 
      if (platform === 'farcaster') {
-       // Warpcast intent
        let url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
-       if (imageUrl) {
-         // Note: Warpcast embeds usually require a hosted URL. Base64 won't preview nicely but we can try attaching logic if we had it hosted.
-         // For now, standard behavior is text intent.
-       }
        window.open(url, "_blank");
      }
   };
@@ -486,32 +489,36 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-neo-darker text-neo-green font-mono selection:bg-neo-green selection:text-black scanlines relative overflow-hidden flex flex-col transition-colors duration-300">
+    <div className="min-h-screen bg-neo-darker text-neo-green font-mono selection:bg-neo-green selection:text-black relative overflow-hidden flex flex-col transition-colors duration-300">
       
       <AnimatePresence>
         {!booted && <OpusIntro onComplete={() => setBooted(true)} />}
       </AnimatePresence>
 
-      <div className="fixed inset-0 bg-grid-pattern bg-[length:40px_40px] opacity-10 animate-grid-move pointer-events-none" />
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neo-green/10 via-transparent to-transparent opacity-60 pointer-events-none" />
+      <div className="fixed inset-0 bg-grid-pattern bg-[length:40px_40px] opacity-10 animate-grid-move pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neo-green/10 via-transparent to-transparent opacity-60 pointer-events-none z-0" />
+      <div className="fixed inset-0 scanlines-layer z-10" />
 
       <header className="sticky top-0 z-50 bg-neo-black/90 backdrop-blur-md border-b border-neo-green/20 transition-colors">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <h1 className="font-bold tracking-widest text-2xl italic select-none">Gm/n</h1>
           <div className="flex items-center gap-4">
             <button 
+              type="button"
               onClick={() => setShowDictionary(true)}
               className="flex items-center gap-2 text-xs md:text-sm hover:text-neo-green/70 transition-colors"
             >
               <BookOpen size={16} /> <span className="hidden md:inline">LINGO</span>
             </button>
             <button 
+              type="button"
               onClick={toggleTheme}
               className="flex items-center gap-2 text-xs md:text-sm hover:text-neo-green/70 transition-colors p-2"
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <button 
+              type="button"
               onClick={() => setShowProfile(true)}
               className="bg-neo-green/10 border border-neo-green/30 p-2 rounded-sm hover:bg-neo-green hover:text-neo-black transition-all"
             >
@@ -521,7 +528,8 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 z-10">
+      {/* Main Content - Raised z-index to 20 to sit above scanlines (z-10) */}
+      <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 z-20 relative">
         <div className="lg:col-span-5 space-y-6">
           <div className="mb-4">
              <h2 className="text-xl md:text-2xl font-bold text-neo-black dark:text-white tracking-wide uppercase italic">
@@ -568,22 +576,23 @@ const App: React.FC = () => {
              </div>
 
              {!image ? (
-                <label 
-                  className="block border-2 border-dashed border-neo-green/20 hover:border-neo-green/50 bg-neo-black/40 p-6 text-center cursor-pointer transition-colors"
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="block border-2 border-dashed border-neo-green/20 hover:border-neo-green/50 bg-neo-black/40 p-6 text-center cursor-pointer transition-colors relative z-30"
                 >
-                  <input type="file" onChange={handleFileSelect} accept="image/*" className="hidden" />
+                  <input ref={fileInputRef} type="file" onChange={handleFileSelect} accept="image/*" className="hidden" />
                   <div className="flex flex-col items-center justify-center gap-2 text-neo-green/50">
                     <Upload size={24} />
                     <span className="text-xs">UPLOAD IMAGE (REQUIRED)</span>
                   </div>
-                </label>
+                </div>
              ) : (
                <div className="relative aspect-video bg-neo-black border border-neo-green/30 overflow-hidden select-none">
                  <img src={image} draggable="false" className="w-full h-full object-contain opacity-80" />
                  <button 
-                    onClick={() => setImage(null)}
                     type="button"
-                    className="absolute top-2 right-2 bg-black/80 text-red-500 p-1 rounded-sm"
+                    onClick={() => setImage(null)}
+                    className="absolute top-2 right-2 bg-black/80 text-red-500 p-1 rounded-sm z-30 cursor-pointer"
                   >
                     <X size={14} />
                   </button>
@@ -595,7 +604,7 @@ const App: React.FC = () => {
                onClick={generateSignal} 
                disabled={isScanning || !image}
                flashing={isScanning}
-               className="w-full flex items-center justify-center gap-2"
+               className="w-full flex items-center justify-center gap-2 z-30"
              >
                {isScanning ? <Cpu className="animate-spin" /> : <Zap />}
                {isScanning ? "PROCESSING..." : "GENERATE GREETINGS"}
@@ -606,12 +615,14 @@ const App: React.FC = () => {
         <div className="lg:col-span-7">
           <div className="flex gap-4 mb-6 border-b border-neo-green/20">
              <button 
+               type="button"
                onClick={() => setActiveTab('GENERATED')}
                className={`pb-2 px-2 text-sm font-bold tracking-widest transition-colors ${activeTab === 'GENERATED' ? 'text-neo-green border-b-2 border-neo-green' : 'text-neo-green/40 hover:text-neo-green'}`}
              >
                GENERATED_SIGNALS
              </button>
              <button 
+               type="button"
                onClick={() => setActiveTab('SAVED')}
                className={`pb-2 px-2 text-sm font-bold tracking-widest transition-colors ${activeTab === 'SAVED' ? 'text-neo-green border-b-2 border-neo-green' : 'text-neo-green/40 hover:text-neo-green'}`}
              >
@@ -636,13 +647,13 @@ const App: React.FC = () => {
                           {cap.mood}
                         </span>
                         <div className="flex gap-1">
-                          <button onClick={() => handleLike(cap.id)} className={`p-1.5 hover:bg-neo-green/10 transition-colors ${cap.liked ? 'text-neo-green' : 'text-neo-green/30'}`}>
+                          <button type="button" onClick={() => handleLike(cap.id)} className={`p-1.5 hover:bg-neo-green/10 transition-colors ${cap.liked ? 'text-neo-green' : 'text-neo-green/30'}`}>
                             <ThumbsUp size={14} />
                           </button>
-                          <button onClick={() => handleDislike(cap.id)} className={`p-1.5 hover:bg-neo-green/10 transition-colors ${cap.disliked ? 'text-red-500' : 'text-neo-green/30'}`}>
+                          <button type="button" onClick={() => handleDislike(cap.id)} className={`p-1.5 hover:bg-neo-green/10 transition-colors ${cap.disliked ? 'text-red-500' : 'text-neo-green/30'}`}>
                             <ThumbsDown size={14} />
                           </button>
-                          <button onClick={() => saveTemplate(cap.text)} className="p-1.5 hover:bg-neo-green/10 text-neo-green/30 hover:text-neo-green transition-colors" title="Save Template">
+                          <button type="button" onClick={() => saveTemplate(cap.text)} className="p-1.5 hover:bg-neo-green/10 text-neo-green/30 hover:text-neo-green transition-colors" title="Save Template">
                             <Bookmark size={14} />
                           </button>
                         </div>
@@ -672,6 +683,7 @@ const App: React.FC = () => {
                         <div className="relative">
                           {!cap.imageUrl && !cap.isGeneratingImage && (
                             <button
+                               type="button"
                                onClick={() => setActiveImageGenId(activeImageGenId === cap.id ? null : cap.id)}
                                className={`h-full px-3 border border-neo-green/30 hover:bg-neo-green/10 text-neo-green/70 hover:text-neo-green transition-colors flex items-center justify-center ${activeImageGenId === cap.id ? 'bg-neo-green/10 text-neo-green' : ''}`}
                                title="Generate Art"
@@ -697,6 +709,7 @@ const App: React.FC = () => {
                                    {(['MEME', 'BEEPLE'] as ImageStyle[]).map(style => (
                                      <button
                                        key={style}
+                                       type="button"
                                        onClick={() => handleGenerateCaptionImage(cap.id, style)}
                                        className="text-[10px] py-2 px-2 hover:bg-neo-green hover:text-neo-black text-neo-green text-left font-bold transition-colors uppercase"
                                      >
@@ -710,6 +723,7 @@ const App: React.FC = () => {
 
                         {/* Copy Button */}
                         <button 
+                          type="button"
                           onClick={() => copyToClipboard(cap.text, `cap-${idx}`)}
                           className="flex-1 border border-neo-green/30 hover:bg-neo-green hover:text-neo-black py-2 text-sm transition-colors flex items-center justify-center gap-2 text-neo-green"
                         >
@@ -719,6 +733,7 @@ const App: React.FC = () => {
                         {/* Broadcast Menu */}
                         <div className="relative flex-1">
                           <button 
+                            type="button"
                             onClick={() => setActiveBroadcastId(activeBroadcastId === cap.id ? null : cap.id)}
                             className={`w-full h-full bg-neo-green text-neo-black font-bold py-2 text-sm hover:bg-neo-black hover:text-neo-green transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-neo-green disabled:opacity-50 ${activeBroadcastId === cap.id ? 'bg-neo-black text-neo-green border-neo-green' : ''}`}
                           >
@@ -737,18 +752,21 @@ const App: React.FC = () => {
                                     Select Channel
                                   </div>
                                   <button 
+                                    type="button"
                                     onClick={() => handleShare('twitter', cap.text, cap.imageUrl)}
                                     className="flex items-center gap-3 px-3 py-3 hover:bg-neo-green hover:text-neo-black text-neo-green transition-colors text-xs font-bold uppercase"
                                   >
                                     <Twitter size={14} /> Post on 𝕏
                                   </button>
                                   <button 
+                                    type="button"
                                     onClick={() => handleShare('farcaster', cap.text, cap.imageUrl)}
                                     className="flex items-center gap-3 px-3 py-3 hover:bg-purple-500 hover:text-white text-purple-400 transition-colors text-xs font-bold uppercase border-t border-neo-green/10"
                                   >
                                     <FarcasterIcon size={14} /> Cast on Base
                                   </button>
                                   <button 
+                                    type="button"
                                     onClick={() => handleShare('zora', cap.text, cap.imageUrl)}
                                     className="flex items-center gap-3 px-3 py-3 hover:bg-blue-500 hover:text-white text-blue-400 transition-colors text-xs font-bold uppercase border-t border-neo-green/10"
                                   >
@@ -800,12 +818,13 @@ const App: React.FC = () => {
                          <span className="text-[10px] text-neo-green/40 font-mono">
                            {new Date(tmpl.timestamp).toLocaleDateString()}
                          </span>
-                         <button onClick={() => deleteTemplate(tmpl.id)} className="text-neo-green/30 hover:text-red-500 transition-colors">
+                         <button type="button" onClick={() => deleteTemplate(tmpl.id)} className="text-neo-green/30 hover:text-red-500 transition-colors">
                            <Trash2 size={14} />
                          </button>
                       </div>
                       <p className="text-lg text-neo-green mb-4">{tmpl.text}</p>
                       <button 
+                          type="button"
                           onClick={() => copyToClipboard(tmpl.text, `tmpl-${tmpl.id}`)}
                           className="w-full border border-neo-green/10 hover:bg-neo-green/10 py-1.5 text-xs transition-colors flex items-center justify-center gap-2 text-neo-green/70"
                         >
@@ -828,6 +847,7 @@ const App: React.FC = () => {
           <div className="flex-1 overflow-x-auto scrollbar-hide flex items-center p-2 gap-2 bg-neo-black/90 backdrop-blur transition-colors">
              {WALLETS.map((wallet, idx) => (
                 <button
+                  type="button"
                   key={wallet.label}
                   onClick={() => copyToClipboard(wallet.address, wallet.label)}
                   className={`
