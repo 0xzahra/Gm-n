@@ -33,7 +33,7 @@
             },
             animation: {
               'scan': 'scan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
               'grid-move': 'gridMove 20s linear infinite',
             },
             keyframes: {
@@ -46,6 +46,10 @@
               gridMove: {
                 '0%': { backgroundPosition: '0 0' },
                 '100%': { backgroundPosition: '40px 40px' },
+              },
+              pulse: {
+                '0%, 100%': { opacity: 1 },
+                '50%': { opacity: 0.5 },
               }
             }
           }
@@ -110,7 +114,7 @@
       }
 
       /* Advanced HUD Clip Path */
-      .hud-panel {
+      .hud-panel, .clip-path-polygon {
         clip-path: polygon(
           0 0, 
           100% 0, 
@@ -149,6 +153,9 @@
       .text-glow {
         text-shadow: 0 0 10px var(--shadow-color-1);
       }
+      
+      /* Utilities */
+      .cursor-pointer { cursor: pointer; }
     </style>
   <script type="importmap">
 {

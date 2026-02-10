@@ -5,7 +5,15 @@ import { SignalMode, GeneratedCaption, ImageStyle } from "../types";
 // Initialize Gemini Client Lazily or Safely
 const getAiClient = () => {
   try {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Check if process is defined to avoid ReferenceError in non-node environments
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    } else {
+      console.warn("API_KEY not found in process.env");
+      // If we can't find the key, we might be in a different env or it's missing.
+      // Returning null will trigger fallback.
+      return null;
+    }
   } catch (error) {
     console.error("Failed to initialize Gemini Client", error);
     return null;
@@ -61,7 +69,11 @@ export const analyzeImageAndGenerateCaptions = async (
       },
     });
 
-    const parsed = JSON.parse(response.text || "{}");
+    let jsonString = response.text || "{}";
+    // Clean up markdown if present
+    jsonString = jsonString.replace(/```json|```/g, '').trim();
+    
+    const parsed = JSON.parse(jsonString);
     const captions = (parsed.captions || []).map((c: any, i: number) => ({
       ...c,
       id: `gen-${Date.now()}-${i}`
