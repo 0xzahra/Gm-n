@@ -2,8 +2,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SignalMode, GeneratedCaption, ImageStyle } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize Gemini Client Lazily or Safely
+const getAiClient = () => {
+  try {
+    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  } catch (error) {
+    console.error("Failed to initialize Gemini Client", error);
+    return null;
+  }
+};
 
 // Image Analysis Function
 export const analyzeImageAndGenerateCaptions = async (
@@ -11,6 +18,9 @@ export const analyzeImageAndGenerateCaptions = async (
   mode: SignalMode,
   tags: string[] = []
 ): Promise<{ context: string; captions: GeneratedCaption[] }> => {
+  const ai = getAiClient();
+  if (!ai) return fallbackResponse(mode);
+
   try {
     const contextStr = tags.length > 0 ? `User context tags: ${tags.join(", ")}.` : "";
     
@@ -74,6 +84,9 @@ export const generateCryptoImage = async (
   mode: SignalMode,
   style: ImageStyle
 ): Promise<string | null> => {
+  const ai = getAiClient();
+  if (!ai) return null;
+
   try {
     const context = contextTags.length > 0 ? contextTags.join(", ") : "Crypto Culture";
     

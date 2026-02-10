@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Share2, 
   Copy, 
   CheckCircle, 
   Zap, 
@@ -15,7 +14,6 @@ import {
   Search,
   LogIn,
   LogOut,
-  ArrowRight,
   RefreshCw,
   Sun,
   Moon,
@@ -23,12 +21,9 @@ import {
   Coins,
   ThumbsUp,
   ThumbsDown,
-  Save,
   Trash2,
-  Image as ImageIcon,
   Palette,
-  Bookmark,
-  ChevronDown
+  Bookmark
 } from "lucide-react";
 import { NeonButton } from "./components/NeonButton";
 import { ScanEffect } from "./components/ScanEffect";
@@ -39,7 +34,7 @@ import { WALLETS, SHORTCUTS, LINGO_DICTIONARY, WEB3_QUOTES } from "./constants";
 const OpusIntro = ({ onComplete }: { onComplete: () => void }) => {
   useEffect(() => {
     // Intro duration before fading out
-    const timer = setTimeout(onComplete, 3500);
+    const timer = setTimeout(onComplete, 2500); // Reduced time for faster entry
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -59,7 +54,7 @@ const OpusIntro = ({ onComplete }: { onComplete: () => void }) => {
     <motion.div
       className="fixed inset-0 z-[100] bg-neo-darker flex flex-col items-center justify-center overflow-hidden"
       initial={{ opacity: 1 }}
-      exit={{ opacity: 0, filter: "blur(20px)", transition: { duration: 1.5, ease: "easeInOut" } }}
+      exit={{ opacity: 0, filter: "blur(20px)", transition: { duration: 0.8, ease: "easeInOut" } }}
     >
       {/* Dynamic Background */}
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
@@ -365,13 +360,10 @@ const App: React.FC = () => {
   };
 
   const toggleTag = (tagId: string) => {
-    // Note: We don't clear image anymore since tags support image analysis now
     setSelectedTags(prev => 
       prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]
     );
-    // Don't clear captions immediately to allow tag adjustment? 
-    // Or clear to force regen. Clearing is safer for consistency.
-    setCaptions([]);
+    // Don't clear captions immediately to keep UI stable
   };
 
   const handleLogin = async (provider: 'google' | 'twitter') => {
@@ -405,16 +397,23 @@ const App: React.FC = () => {
     setCaptions([]);
     setActiveTab('GENERATED');
 
-    const minTime = new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const tagLabels = selectedTags.map(id => SHORTCUTS.find(s => s.id === id)?.label || "");
-    const resultPromise = analyzeImageAndGenerateCaptions(image, mode, tagLabels);
-
-    const [_, result] = await Promise.all([minTime, resultPromise]);
-
-    setDetectedContext(result.context);
-    setCaptions(result.captions);
-    setIsScanning(false);
+    try {
+      const minTime = new Promise(resolve => setTimeout(resolve, 800)); // Reduced delay for speed
+      
+      const tagLabels = selectedTags.map(id => SHORTCUTS.find(s => s.id === id)?.label || "");
+      const resultPromise = analyzeImageAndGenerateCaptions(image, mode, tagLabels);
+  
+      const [_, result] = await Promise.all([minTime, resultPromise]);
+  
+      setDetectedContext(result.context);
+      setCaptions(result.captions);
+    } catch (error) {
+      console.error("Signal Generation Failed:", error);
+      // Fallback is handled in service, but if something catastrophic happens:
+      setDetectedContext("System Error");
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const handleGenerateCaptionImage = async (captionId: string, style: ImageStyle) => {
@@ -425,12 +424,17 @@ const App: React.FC = () => {
     setCaptions(prev => prev.map(c => c.id === captionId ? { ...c, isGeneratingImage: true } : c));
     setActiveImageGenId(null); // Close the selector
 
-    const tagLabels = selectedTags.map(id => SHORTCUTS.find(s => s.id === id)?.label || "");
-    const generatedUrl = await generateCryptoImage(caption.text, tagLabels, mode, style);
-
-    if (generatedUrl) {
-      setCaptions(prev => prev.map(c => c.id === captionId ? { ...c, isGeneratingImage: false, imageUrl: generatedUrl } : c));
-    } else {
+    try {
+      const tagLabels = selectedTags.map(id => SHORTCUTS.find(s => s.id === id)?.label || "");
+      const generatedUrl = await generateCryptoImage(caption.text, tagLabels, mode, style);
+  
+      if (generatedUrl) {
+        setCaptions(prev => prev.map(c => c.id === captionId ? { ...c, isGeneratingImage: false, imageUrl: generatedUrl } : c));
+      } else {
+        setCaptions(prev => prev.map(c => c.id === captionId ? { ...c, isGeneratingImage: false } : c));
+      }
+    } catch (e) {
+      console.error("Image Gen Error", e);
       setCaptions(prev => prev.map(c => c.id === captionId ? { ...c, isGeneratingImage: false } : c));
     }
   };
@@ -619,6 +623,7 @@ const App: React.FC = () => {
              <NeonButton 
                onClick={generateSignal} 
                disabled={isScanning || !image}
+               flashing={isScanning}
                className="w-full flex items-center justify-center gap-2"
              >
                {isScanning ? <Cpu className="animate-spin" /> : <Zap />}
