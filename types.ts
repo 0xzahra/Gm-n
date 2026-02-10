@@ -1,4 +1,6 @@
+
 export type SignalMode = 'GM' | 'GN';
+export type ImageStyle = 'MEME' | 'BEEPLE';
 
 export interface UserStats {
   streak: number;
@@ -16,8 +18,13 @@ export interface UserProfile {
 }
 
 export interface GeneratedCaption {
+  id: string;
   text: string;
   mood: string;
+  liked?: boolean;
+  disliked?: boolean;
+  imageUrl?: string;
+  isGeneratingImage?: boolean;
 }
 
 export interface WalletAddress {
@@ -29,6 +36,7 @@ export interface WalletAddress {
 export interface AnalysisResult {
   context: string;
   captions: GeneratedCaption[];
+  generatedImage?: string;
 }
 
 export interface LingoDefinition {
@@ -41,4 +49,10 @@ export interface ShortcutTag {
   id: string;
   label: string;
   category: 'chain' | 'mood' | 'lifestyle';
+}
+
+export interface SavedTemplate {
+  id: string;
+  text: string;
+  timestamp: number;
 }

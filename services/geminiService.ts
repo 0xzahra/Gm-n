@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { SignalMode, GeneratedCaption } from "../types";
+import { SignalMode, GeneratedCaption, ImageStyle } from "../types";
 
 // Initialize Gemini Client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -7,12 +8,16 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 // Image Analysis Function
 export const analyzeImageAndGenerateCaptions = async (
   base64Image: string,
-  mode: SignalMode
+  mode: SignalMode,
+  tags: string[] = []
 ): Promise<{ context: string; captions: GeneratedCaption[] }> => {
   try {
+    const contextStr = tags.length > 0 ? `User context tags: ${tags.join(", ")}.` : "";
+    
     const prompt = `
       You are a crypto-native creative technologist.
       Analyze the image. Generate 6 witty, crypto-culture relevant captions for a "${mode}" post.
+      ${contextStr}
       
       Context for "GM": High energy, builder, "shipping", wagmi.
       Context for "GN": Hopium, reflection, "we made it", rest.
@@ -47,9 +52,14 @@ export const analyzeImageAndGenerateCaptions = async (
     });
 
     const parsed = JSON.parse(response.text || "{}");
+    const captions = (parsed.captions || []).map((c: any, i: number) => ({
+      ...c,
+      id: `gen-${Date.now()}-${i}`
+    }));
+
     return {
       context: parsed.detectedContext || "Visual Signal",
-      captions: parsed.captions || [],
+      captions,
     };
   } catch (error) {
     console.error("Gemini Vision Error:", error);
@@ -57,59 +67,64 @@ export const analyzeImageAndGenerateCaptions = async (
   }
 };
 
-// Text-Only Generation Function
-export const generateTextCaptions = async (
-  tags: string[],
-  mode: SignalMode
-): Promise<GeneratedCaption[]> => {
+// Image Generation Function
+export const generateCryptoImage = async (
+  captionText: string,
+  contextTags: string[],
+  mode: SignalMode,
+  style: ImageStyle
+): Promise<string | null> => {
   try {
-    const context = tags.length > 0 ? tags.join(", ") : "General Crypto Vibes";
+    const context = contextTags.length > 0 ? contextTags.join(", ") : "Crypto Culture";
+    
+    let stylePrompt = "";
+    if (style === 'MEME') {
+      stylePrompt = "Create a funny, viral crypto meme style image. Cartoonish, high contrast, internet culture aesthetic, pepe or doge vibes but original.";
+    } else {
+      stylePrompt = "Create a Beeple-style digital art masterpiece. Dystopian yet hopeful, cyberpunk, neon aesthetic, highly detailed, 3D render, surrealism, monumental scale.";
+    }
+
     const prompt = `
-      Generate 6 witty, crypto-twitter style captions for a "${mode}" post.
-      The user has selected these context tags: ${context}.
-      
-      If the tag includes a specific chain (e.g., gBase, gSol), make sure the lingo matches that ecosystem (e.g., "Based" for Base, "Solana summer" for Sol).
-      Keep it short, punchy, and use slang (ser, fren, bags, LFG).
-      
-      Output JSON: { captions: [{text, mood}] }
+      ${stylePrompt}
+      Visualize this caption: "${captionText}"
+      Context keywords: ${context}, ${mode}.
+      Make it look amazing for Crypto Twitter.
+      No text in the image.
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", // Flash is faster/cheaper for text-only
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            captions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: { text: { type: Type.STRING }, mood: { type: Type.STRING } },
-              },
-            },
-          },
-        },
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: prompt }],
       },
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9", 
+        }
+      }
     });
 
-    const parsed = JSON.parse(response.text || "{}");
-    return parsed.captions || [];
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+
   } catch (error) {
-    console.error("Gemini Text Error:", error);
-    return fallbackResponse(mode).captions;
+    console.error("Image Generation Error:", error);
+    return null;
   }
-};
+}
 
 const fallbackResponse = (mode: SignalMode) => ({
   context: "Signal Interrupted",
   captions: [
-    { text: `${mode}. Network congested. We build regardless.`, mood: "Stoic" },
-    { text: `Manual ${mode} override initiated. Stay based.`, mood: "Manual" },
-    { text: `Connection unstable. Conviction remains high. ${mode}.`, mood: "Glitch" },
-    { text: `System reboot required. Still early. ${mode}.`, mood: "Tech" },
-    { text: `Signals fading, but bags are heavy. ${mode}.`, mood: "Degen" },
-    { text: `Offline mode active. Touch grass. ${mode}.`, mood: "Zen" },
+    { id: 'err1', text: `${mode}. Network congested. We build regardless.`, mood: "Stoic" },
+    { id: 'err2', text: `Manual ${mode} override initiated. Stay based.`, mood: "Manual" },
+    { id: 'err3', text: `Connection unstable. Conviction remains high. ${mode}.`, mood: "Glitch" },
+    { id: 'err4', text: `System reboot required. Still early. ${mode}.`, mood: "Tech" },
+    { id: 'err5', text: `Signals fading, but bags are heavy. ${mode}.`, mood: "Degen" },
+    { id: 'err6', text: `Offline mode active. Touch grass. ${mode}.`, mood: "Zen" },
   ],
 });
