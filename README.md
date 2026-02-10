@@ -1,4 +1,4 @@
-This contains everything you need to run your app locally.
+This contains everything you need to run my app locally.
 
 View my app in AI Studio: https://ai.studio/apps/drive/1twPw7k5m66mC2w8D0jGb16__weZYkxqT
 
