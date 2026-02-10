@@ -12,24 +12,24 @@
           extend: {
             colors: {
               neo: {
-                black: '#050505',
-                darker: '#020202',
-                green: '#00FF41',
-                primaryDim: '#008F24',
-                glass: 'rgba(0, 255, 65, 0.03)',
-                glassBorder: 'rgba(0, 255, 65, 0.2)',
+                black: 'var(--neo-black)',
+                darker: 'var(--neo-darker)',
+                green: 'var(--neo-green)',
+                primaryDim: 'var(--neo-primary-dim)',
+                glass: 'var(--neo-glass)',
+                glassBorder: 'var(--neo-glass-border)',
               }
             },
             fontFamily: {
               mono: ['"JetBrains Mono"', 'monospace'],
             },
             backgroundImage: {
-              'grid-pattern': "linear-gradient(to right, #001100 1px, transparent 1px), linear-gradient(to bottom, #001100 1px, transparent 1px)",
+              'grid-pattern': "linear-gradient(to right, var(--grid-color) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px)",
             },
             boxShadow: {
-              'neon': '0 0 10px rgba(0, 255, 65, 0.3), 0 0 20px rgba(0, 255, 65, 0.1)',
-              'neon-strong': '0 0 15px rgba(0, 255, 65, 0.6), 0 0 30px rgba(0, 255, 65, 0.3)',
-              'screen': 'inset 0 0 40px rgba(0, 255, 65, 0.05)',
+              'neon': '0 0 10px var(--shadow-color-1), 0 0 20px var(--shadow-color-2)',
+              'neon-strong': '0 0 15px var(--shadow-color-1), 0 0 30px var(--shadow-color-2)',
+              'screen': 'inset 0 0 40px var(--neo-glass)',
             },
             animation: {
               'scan': 'scan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite',
@@ -53,10 +53,41 @@
       }
     </script>
     <style>
+      :root {
+        /* DARK MODE (Default) */
+        --neo-black: #050505;
+        --neo-darker: #020202;
+        --neo-green: #00FF41;
+        --neo-primary-dim: #008F24;
+        --neo-glass: rgba(0, 255, 65, 0.03);
+        --neo-glass-border: rgba(0, 255, 65, 0.2);
+        --grid-color: #001100;
+        --shadow-color-1: rgba(0, 255, 65, 0.3);
+        --shadow-color-2: rgba(0, 255, 65, 0.1);
+        --scanline-1: rgba(18, 16, 16, 0);
+        --scanline-2: rgba(0, 0, 0, 0.25);
+      }
+
+      html.light-mode {
+        /* LIGHT MODE */
+        --neo-black: #FFFFFF;
+        --neo-darker: #F4F4F5; /* Zinc-100 */
+        --neo-green: #15803d; /* Green-700 - Darker for readability */
+        --neo-primary-dim: #166534;
+        --neo-glass: rgba(21, 128, 61, 0.05);
+        --neo-glass-border: rgba(21, 128, 61, 0.2);
+        --grid-color: #E5E7EB;
+        --shadow-color-1: rgba(21, 128, 61, 0.2);
+        --shadow-color-2: rgba(21, 128, 61, 0.1);
+        --scanline-1: rgba(255, 255, 255, 0);
+        --scanline-2: rgba(0, 0, 0, 0.02);
+      }
+
       body {
-        background-color: #020202;
-        color: #00FF41;
+        background-color: var(--neo-darker);
+        color: var(--neo-green);
         overflow-x: hidden;
+        transition: background-color 0.3s ease, color 0.3s ease;
       }
       
       /* CRT Scanline Effect */
@@ -72,7 +103,7 @@
         left: 0;
         bottom: 0;
         right: 0;
-        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+        background: linear-gradient(var(--scanline-1) 50%, var(--scanline-2) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
         background-size: 100% 2px, 3px 100%;
         z-index: 50;
         pointer-events: none;
@@ -105,18 +136,18 @@
         height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #000000;
+        background: var(--neo-darker);
       }
       ::-webkit-scrollbar-thumb {
-        background: #003300;
+        background: var(--neo-primary-dim);
         border-radius: 0px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #00FF41;
+        background: var(--neo-green);
       }
 
       .text-glow {
-        text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        text-shadow: 0 0 10px var(--shadow-color-1);
       }
     </style>
   <script type="importmap">

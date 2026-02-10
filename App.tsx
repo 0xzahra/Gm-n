@@ -14,7 +14,9 @@ import {
   Search,
   LogIn,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Sun,
+  Moon
 } from "lucide-react";
 import { NeonButton } from "./components/NeonButton";
 import { ScanEffect } from "./components/ScanEffect";
@@ -72,7 +74,7 @@ const UserProfileModal = ({ isOpen, onClose, user, onLogin }: { isOpen: boolean,
         {!user ? (
           <div className="text-center space-y-6">
             <User size={48} className="mx-auto text-neo-green" />
-            <h2 className="text-xl font-bold tracking-widest">AUTHENTICATE</h2>
+            <h2 className="text-xl font-bold tracking-widest text-neo-green">AUTHENTICATE</h2>
             <p className="text-sm text-neo-green/60">Connect to sync your signal history and preferences.</p>
             <div className="space-y-3">
               <button 
@@ -93,7 +95,7 @@ const UserProfileModal = ({ isOpen, onClose, user, onLogin }: { isOpen: boolean,
           <div className="text-center space-y-6">
             <img src={user.avatar} alt="Avatar" className="w-20 h-20 rounded-full mx-auto border-2 border-neo-green" />
             <div>
-              <h2 className="text-xl font-bold">{user.name}</h2>
+              <h2 className="text-xl font-bold text-neo-green">{user.name}</h2>
               <p className="text-neo-green/60 text-sm">@{user.handle}</p>
             </div>
             <div className="bg-neo-green/5 p-4 border border-neo-green/20 text-left">
@@ -113,7 +115,7 @@ const UserProfileModal = ({ isOpen, onClose, user, onLogin }: { isOpen: boolean,
 const LingoCard: React.FC<{ item: LingoDefinition }> = ({ item }) => (
   <div className="bg-neo-black border border-neo-green/20 p-5 hover:border-neo-green/50 transition-all hover:bg-neo-green/5 hud-panel group">
     <div className="flex justify-between items-start mb-2">
-      <h3 className="text-lg font-bold text-white group-hover:text-neo-green transition-colors">{item.word}</h3>
+      <h3 className="text-lg font-bold text-neo-green group-hover:text-neo-green/80 transition-colors">{item.word}</h3>
       <span className="text-[10px] uppercase border border-neo-green/30 px-2 py-0.5 text-neo-green/60">{item.category}</span>
     </div>
     <p className="text-sm text-neo-green/80 leading-relaxed">{item.definition}</p>
@@ -149,7 +151,7 @@ const LingoDictionary = ({ onClose }: { onClose: () => void }) => {
             <h2 className="text-2xl font-bold tracking-widest flex items-center gap-2">
               <BookOpen className="text-neo-green" /> LIMBO_ARCHIVES
             </h2>
-            <button onClick={onClose} className="p-2 border border-neo-green/20 hover:bg-neo-green/10 rounded-sm"><X /></button>
+            <button onClick={onClose} className="p-2 border border-neo-green/20 hover:bg-neo-green/10 rounded-sm text-neo-green"><X /></button>
           </div>
 
           <div className="relative mb-6">
@@ -228,13 +230,28 @@ const App: React.FC = () => {
   const [showProfile, setShowProfile] = useState(false);
   const [showDictionary, setShowDictionary] = useState(false);
   const [randomQuote, setRandomQuote] = useState(WEB3_QUOTES[0]);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const random = WEB3_QUOTES[Math.floor(Math.random() * WEB3_QUOTES.length)];
     setRandomQuote(random);
-  }, []); // Run once on mount
+  }, []); 
+
+  // Toggle Theme Class on HTML element
+  useEffect(() => {
+    const html = document.documentElement;
+    if (theme === 'light') {
+      html.classList.add('light-mode');
+    } else {
+      html.classList.remove('light-mode');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -307,27 +324,38 @@ const App: React.FC = () => {
   if (!booted) return <BootSequence onComplete={() => setBooted(true)} />;
 
   return (
-    <div className="min-h-screen bg-neo-darker text-neo-green font-mono selection:bg-neo-green selection:text-black scanlines relative overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-neo-darker text-neo-green font-mono selection:bg-neo-green selection:text-black scanlines relative overflow-hidden flex flex-col transition-colors duration-300">
       
       {/* Background */}
       <div className="fixed inset-0 bg-grid-pattern bg-[length:40px_40px] opacity-10 animate-grid-move pointer-events-none" />
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neo-green/10 via-transparent to-transparent opacity-60 pointer-events-none" />
 
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-neo-black/90 backdrop-blur-md border-b border-neo-green/20">
+      <header className="sticky top-0 z-50 bg-neo-black/90 backdrop-blur-md border-b border-neo-green/20 transition-colors">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <h1 className="font-bold tracking-widest text-2xl italic">Gm/n</h1>
           
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setShowDictionary(true)}
-              className="flex items-center gap-2 text-xs md:text-sm hover:text-white transition-colors"
+              className="flex items-center gap-2 text-xs md:text-sm hover:text-neo-green/70 transition-colors"
             >
               <BookOpen size={16} /> <span className="hidden md:inline">LINGO</span>
             </button>
+            
+            {/* Theme Toggle */}
+            <button 
+              onClick={toggleTheme}
+              className="flex items-center gap-2 text-xs md:text-sm hover:text-neo-green/70 transition-colors p-2"
+              aria-label="Toggle Theme"
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            {/* Profile Button */}
             <button 
               onClick={() => setShowProfile(true)}
-              className="bg-neo-green/10 border border-neo-green/30 p-2 rounded-sm hover:bg-neo-green hover:text-black transition-all"
+              className="bg-neo-green/10 border border-neo-green/30 p-2 rounded-sm hover:bg-neo-green hover:text-neo-black transition-all"
             >
               {user ? <img src={user.avatar} className="w-5 h-5 rounded-full" /> : <LogIn size={18} />}
             </button>
@@ -343,7 +371,7 @@ const App: React.FC = () => {
           
           {/* Motivation / Greeting Section */}
           <div className="mb-4">
-             <h2 className="text-xl md:text-2xl font-bold text-white tracking-wide uppercase italic">
+             <h2 className="text-xl md:text-2xl font-bold text-neo-black dark:text-white tracking-wide uppercase italic">
                 {user ? `What's popping, ${user.name}?` : "What's on your mind today?"}
              </h2>
              <p className="text-neo-green/60 text-sm mt-2 border-l-2 border-neo-green pl-3 py-1 italic leading-relaxed">
@@ -359,8 +387,8 @@ const App: React.FC = () => {
                 onClick={() => setMode(m)}
                 className={`py-6 text-xl font-bold tracking-widest transition-all duration-200 border clip-path-polygon ${
                   mode === m 
-                    ? "bg-neo-green text-black border-neo-green shadow-neon" 
-                    : "bg-black text-neo-green border-neo-green/30 hover:border-neo-green hover:bg-neo-green/5"
+                    ? "bg-neo-green text-neo-black border-neo-green shadow-neon" 
+                    : "bg-neo-black text-neo-green border-neo-green/30 hover:border-neo-green hover:bg-neo-green/5"
                 }`}
               >
                 {m}
@@ -378,7 +406,7 @@ const App: React.FC = () => {
                    onClick={() => toggleTag(tag.id)}
                    className={`px-3 py-1.5 text-xs font-bold border transition-all ${
                      selectedTags.includes(tag.id)
-                       ? "bg-neo-green text-black border-neo-green"
+                       ? "bg-neo-green text-neo-black border-neo-green"
                        : "bg-transparent text-neo-green/60 border-neo-green/20 hover:border-neo-green/50"
                    }`}
                  >
@@ -390,7 +418,7 @@ const App: React.FC = () => {
              {/* Image Upload / Preview */}
              {!image ? (
                 <div 
-                  className="border-2 border-dashed border-neo-green/20 hover:border-neo-green/50 bg-black/40 p-6 text-center cursor-pointer transition-colors"
+                  className="border-2 border-dashed border-neo-green/20 hover:border-neo-green/50 bg-neo-black/40 p-6 text-center cursor-pointer transition-colors"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
@@ -400,7 +428,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
              ) : (
-               <div className="relative aspect-video bg-black border border-neo-green/30 overflow-hidden">
+               <div className="relative aspect-video bg-neo-black border border-neo-green/30 overflow-hidden">
                  <img src={image} className="w-full h-full object-contain opacity-80" />
                  <button 
                     onClick={() => setImage(null)}
@@ -436,7 +464,7 @@ const App: React.FC = () => {
                   transition={{ delay: idx * 0.1 }}
                   className="bg-neo-black border border-neo-green/30 p-6 relative group hover:border-neo-green transition-colors hud-panel"
                 >
-                  <div className="absolute top-0 right-0 p-2 opacity-30 text-[10px] uppercase">
+                  <div className="absolute top-0 right-0 p-2 opacity-30 text-[10px] uppercase text-neo-green">
                     {detectedContext || "TEXT_GEN"}
                   </div>
 
@@ -446,20 +474,20 @@ const App: React.FC = () => {
                     </span>
                   </div>
 
-                  <p className="text-xl mb-6 font-light leading-relaxed text-white">
+                  <p className="text-xl mb-6 font-light leading-relaxed text-neo-green">
                     {cap.text}
                   </p>
 
                   <div className="flex gap-3">
                     <button 
                       onClick={() => copyToClipboard(cap.text, `cap-${idx}`)}
-                      className="flex-1 border border-neo-green/30 hover:bg-neo-green hover:text-black py-2 text-sm transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 border border-neo-green/30 hover:bg-neo-green hover:text-neo-black py-2 text-sm transition-colors flex items-center justify-center gap-2 text-neo-green"
                     >
                       {copiedWallet === `cap-${idx}` ? <CheckCircle size={14} /> : <Copy size={14} />} COPY
                     </button>
                     <button 
                       onClick={() => openTwitterIntent(cap.text)}
-                      className="flex-1 bg-neo-green text-black font-bold py-2 text-sm hover:bg-white transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 bg-neo-green text-neo-black font-bold py-2 text-sm hover:bg-neo-black hover:text-neo-green transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-neo-green"
                     >
                       <Twitter size={14} /> POST
                     </button>
@@ -490,13 +518,13 @@ const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-neo-black border-t border-neo-green/30 z-30">
+      <footer className="fixed bottom-0 left-0 right-0 bg-neo-black border-t border-neo-green/30 z-30 transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row">
-          <div className="bg-neo-green text-black px-6 py-3 font-bold text-[10px] md:text-xs tracking-widest flex items-center gap-2 md:w-auto shrink-0 uppercase">
+          <div className="bg-neo-green text-neo-black px-6 py-3 font-bold text-[10px] md:text-xs tracking-widest flex items-center gap-2 md:w-auto shrink-0 uppercase">
              Say thanks to the dev and buy her coffee☕
           </div>
           
-          <div className="flex-1 overflow-x-auto scrollbar-hide flex items-center p-2 gap-2 bg-neo-black/90 backdrop-blur">
+          <div className="flex-1 overflow-x-auto scrollbar-hide flex items-center p-2 gap-2 bg-neo-black/90 backdrop-blur transition-colors">
              {WALLETS.map((wallet, idx) => (
                 <button
                   key={wallet.label}
@@ -513,7 +541,7 @@ const App: React.FC = () => {
                     <div className={`text-[9px] uppercase tracking-wider ${idx === 0 ? "text-neo-green font-bold" : "text-neo-green/60"}`}>
                       {wallet.label}
                     </div>
-                    <div className="font-mono text-xs font-bold flex items-center gap-2">
+                    <div className="font-mono text-xs font-bold flex items-center gap-2 text-neo-green">
                       {wallet.address}
                       {copiedWallet === wallet.label && <CheckCircle size={10} className="text-neo-green" />}
                     </div>
@@ -540,7 +568,7 @@ const App: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 right-4 bg-neo-green text-black px-4 py-2 font-bold shadow-neon z-50 flex items-center gap-2 text-sm"
+            className="fixed bottom-24 right-4 bg-neo-green text-neo-black px-4 py-2 font-bold shadow-neon z-50 flex items-center gap-2 text-sm"
           >
             <CheckCircle size={16} /> COPIED!
           </motion.div>
