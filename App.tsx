@@ -13,10 +13,13 @@ import {
   Twitter,
   Search,
   LogIn,
+  LogOut,
   ArrowRight,
   RefreshCw,
   Sun,
-  Moon
+  Moon,
+  Gem,
+  Coins
 } from "lucide-react";
 import { NeonButton } from "./components/NeonButton";
 import { ScanEffect } from "./components/ScanEffect";
@@ -24,51 +27,111 @@ import { analyzeImageAndGenerateCaptions, generateTextCaptions } from "./service
 import { SignalMode, GeneratedCaption, UserProfile, LingoDefinition } from "./types";
 import { WALLETS, SHORTCUTS, LINGO_DICTIONARY, WEB3_QUOTES } from "./constants";
 
-const BootSequence = ({ onComplete }: { onComplete: () => void }) => {
-  const [step, setStep] = useState(0);
-  const steps = ["INITIALIZING...", "LOADING_ZAHRA_PROTOCOL...", "ACCESS_GRANTED"];
-
+const OpusIntro = ({ onComplete }: { onComplete: () => void }) => {
   useEffect(() => {
-    if (step < steps.length) {
-      const timeout = setTimeout(() => setStep(s => s + 1), 500);
-      return () => clearTimeout(timeout);
-    } else {
-      setTimeout(onComplete, 300);
-    }
-  }, [step]);
+    // Intro duration before fading out
+    const timer = setTimeout(onComplete, 3500);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  // Floating symbols configuration
+  const symbols = [
+    { char: "Ξ", top: "20%", left: "25%", delay: 0 },
+    { char: "₿", top: "70%", left: "15%", delay: 0.5 },
+    { char: "◎", top: "15%", left: "75%", delay: 1 },
+    { char: <Zap size={32} />, top: "80%", left: "80%", delay: 1.5 },
+    { char: <Cpu size={24} />, top: "40%", left: "10%", delay: 0.8 },
+    { char: <Gem size={28} />, top: "60%", left: "90%", delay: 1.2 },
+    { char: <Coins size={30} />, top: "10%", left: "50%", delay: 0.3 },
+    { char: "⚪", top: "85%", left: "40%", delay: 0.7 }, // Base
+  ];
 
   return (
-    <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center font-mono text-neo-green p-8">
-      <div className="w-full max-w-md space-y-2">
-        {steps.slice(0, step + 1).map((s, i) => (
-          <motion.div 
-            key={i}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-3 text-sm"
-          >
-             <span className="text-neo-green/50">_</span>
-             <span className={i === steps.length - 1 ? "text-white font-bold" : "text-neo-green"}>{s}</span>
-          </motion.div>
-        ))}
-        {step < steps.length && (
-          <motion.div 
-            className="h-1 bg-neo-green mt-4"
-            initial={{ width: "0%" }}
-            animate={{ width: "100%" }}
-            transition={{ duration: 1.5, ease: "linear" }}
-          />
-        )}
+    <motion.div
+      className="fixed inset-0 z-[100] bg-neo-darker flex flex-col items-center justify-center overflow-hidden"
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0, filter: "blur(20px)", transition: { duration: 1.5, ease: "easeInOut" } }}
+    >
+      {/* Dynamic Background */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,255,65,0.08)_0%,transparent_70%)]" />
+
+      {/* Floating Symbols Animation */}
+      {symbols.map((s, i) => (
+        <motion.div
+          key={i}
+          className="absolute text-neo-green/40 font-bold text-3xl md:text-5xl blur-[1px] select-none flex items-center justify-center"
+          style={{ top: s.top, left: s.left }}
+          initial={{ opacity: 0, scale: 0.5, y: 50 }}
+          animate={{ 
+            opacity: [0, 0.8, 0.4, 0], 
+            y: [50, -50],
+            scale: [0.8, 1.2, 0.9],
+            rotate: [0, 10, -10, 0]
+          }}
+          transition={{ 
+            duration: 4.5, 
+            times: [0, 0.2, 0.8, 1],
+            ease: "easeInOut",
+            delay: s.delay 
+          }}
+        >
+          {s.char}
+        </motion.div>
+      ))}
+
+      {/* Central Content */}
+      <div className="relative z-10 text-center flex flex-col items-center">
+        <motion.h1 
+          initial={{ scale: 0.8, opacity: 0, filter: "blur(15px)", letterSpacing: "-0.1em" }}
+          animate={{ scale: 1, opacity: 1, filter: "blur(0px)", letterSpacing: "0em" }}
+          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+          className="text-8xl md:text-9xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-neo-green drop-shadow-[0_0_35px_rgba(0,255,65,0.6)]"
+        >
+          Gm/n
+        </motion.h1>
+        
+        <motion.div
+          initial={{ width: 0, opacity: 0 }}
+          animate={{ width: "120%", opacity: 1 }}
+          transition={{ delay: 0.8, duration: 1, ease: "easeOut" }}
+          className="h-[2px] bg-gradient-to-r from-transparent via-neo-green to-transparent mt-2 mb-6"
+        />
+
+        <motion.p
+          initial={{ opacity: 0, y: 20, letterSpacing: "0em" }}
+          animate={{ opacity: 1, y: 0, letterSpacing: "0.4em" }}
+          transition={{ delay: 1.1, duration: 1 }}
+          className="text-neo-green font-mono font-bold text-xs md:text-sm uppercase tracking-widest flex items-center gap-3"
+        >
+          <span className="w-1.5 h-1.5 bg-neo-green rounded-full animate-pulse shadow-neon" />
+          Signal_Optimizer_Pro
+          <span className="w-1.5 h-1.5 bg-neo-green rounded-full animate-pulse shadow-neon" />
+        </motion.p>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-const UserProfileModal = ({ isOpen, onClose, user, onLogin }: { isOpen: boolean, onClose: () => void, user: UserProfile | null, onLogin: (provider: 'google' | 'twitter') => void }) => {
+const UserProfileModal = ({ 
+  isOpen, 
+  onClose, 
+  user, 
+  onLogin, 
+  onLogout, 
+  isLoggingIn 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  user: UserProfile | null, 
+  onLogin: (provider: 'google' | 'twitter') => void,
+  onLogout: () => void,
+  isLoggingIn: boolean
+}) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-neo-black border border-neo-green/30 p-8 max-w-md w-full hud-panel relative">
+      <div className="bg-neo-black border border-neo-green/30 p-8 max-w-md w-full hud-panel relative shadow-neon">
         <button onClick={onClose} className="absolute top-4 right-4 text-neo-green/50 hover:text-neo-green"><X size={20} /></button>
         
         {!user ? (
@@ -79,32 +142,43 @@ const UserProfileModal = ({ isOpen, onClose, user, onLogin }: { isOpen: boolean,
             <div className="space-y-3">
               <button 
                 onClick={() => onLogin('google')}
-                className="w-full bg-white text-black font-bold py-3 px-4 flex items-center justify-center gap-2 hover:bg-gray-200"
+                disabled={isLoggingIn}
+                className="w-full bg-white text-black font-bold py-3 px-4 flex items-center justify-center gap-2 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <div className="w-4 h-4 rounded-full bg-blue-500" /> Continue with Google
+                {isLoggingIn ? <RefreshCw className="animate-spin" size={16}/> : <div className="w-4 h-4 rounded-full bg-blue-500" />} 
+                {isLoggingIn ? "CONNECTING..." : "Continue with Google"}
               </button>
               <button 
                 onClick={() => onLogin('twitter')}
-                className="w-full bg-black border border-neo-green/50 text-neo-green font-bold py-3 px-4 flex items-center justify-center gap-2 hover:bg-neo-green/10"
+                disabled={isLoggingIn}
+                className="w-full bg-black border border-neo-green/50 text-neo-green font-bold py-3 px-4 flex items-center justify-center gap-2 hover:bg-neo-green/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <Twitter size={16} /> Continue with 𝕏
+                {isLoggingIn ? <RefreshCw className="animate-spin" size={16}/> : <Twitter size={16} />} 
+                {isLoggingIn ? "CONNECTING..." : "Continue with 𝕏"}
               </button>
             </div>
           </div>
         ) : (
           <div className="text-center space-y-6">
-            <img src={user.avatar} alt="Avatar" className="w-20 h-20 rounded-full mx-auto border-2 border-neo-green" />
+            <img src={user.avatar} alt="Avatar" className="w-24 h-24 rounded-full mx-auto border-2 border-neo-green shadow-neon" />
             <div>
-              <h2 className="text-xl font-bold text-neo-green">{user.name}</h2>
-              <p className="text-neo-green/60 text-sm">@{user.handle}</p>
+              <h2 className="text-2xl font-bold text-neo-green">{user.name}</h2>
+              <p className="text-neo-green/60 text-sm font-mono">@{user.handle}</p>
             </div>
             <div className="bg-neo-green/5 p-4 border border-neo-green/20 text-left">
-              <div className="text-xs uppercase opacity-50 mb-2">Operator Status</div>
-              <div className="flex items-center gap-2 text-sm font-bold">
-                 <div className="w-2 h-2 bg-neo-green rounded-full animate-pulse" />
-                 ACTIVE
+              <div className="text-xs uppercase opacity-50 mb-2 font-bold tracking-wider">Operator Status</div>
+              <div className="flex items-center gap-2 text-sm font-bold text-neo-green">
+                 <div className="w-2 h-2 bg-neo-green rounded-full animate-pulse shadow-[0_0_10px_#00FF41]" />
+                 ACTIVE // {user.provider === 'google' ? 'GOOGLE_AUTH' : 'X_AUTH'}
               </div>
             </div>
+            
+            <button 
+              onClick={onLogout}
+              className="w-full border border-red-500/50 text-red-500 font-bold py-3 px-4 hover:bg-red-500/10 transition-colors uppercase text-xs tracking-widest flex items-center justify-center gap-2"
+            >
+              <LogOut size={14} /> Disconnect
+            </button>
           </div>
         )}
       </div>
@@ -228,6 +302,7 @@ const App: React.FC = () => {
   // New UI States
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showDictionary, setShowDictionary] = useState(false);
   const [randomQuote, setRandomQuote] = useState(WEB3_QUOTES[0]);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -238,6 +313,18 @@ const App: React.FC = () => {
     const random = WEB3_QUOTES[Math.floor(Math.random() * WEB3_QUOTES.length)];
     setRandomQuote(random);
   }, []); 
+
+  // Initialize Session from Local Storage
+  useEffect(() => {
+    const savedUser = localStorage.getItem('gm_user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error("Failed to restore session", e);
+      }
+    }
+  }, []);
 
   // Toggle Theme Class on HTML element
   useEffect(() => {
@@ -275,16 +362,33 @@ const App: React.FC = () => {
     setCaptions([]);
   };
 
-  const handleLogin = (provider: 'google' | 'twitter') => {
-    // Mock Login
-    setUser({
+  const handleLogin = async (provider: 'google' | 'twitter') => {
+    setIsLoggingIn(true);
+    
+    // Simulate Network Request
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Mock User Data based on provider
+    const newUser: UserProfile = {
       name: provider === 'google' ? "Operator_01" : "Based_User",
       handle: provider === 'google' ? "operator" : "degen_king",
-      avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Felix",
+      avatar: provider === 'google' 
+        ? "https://api.dicebear.com/7.x/bottts/svg?seed=Operator" 
+        : "https://api.dicebear.com/7.x/bottts/svg?seed=Degen",
       isLoggedIn: true,
       provider
-    });
+    };
+
+    setUser(newUser);
+    localStorage.setItem('gm_user', JSON.stringify(newUser));
+    setIsLoggingIn(false);
     setShowProfile(false);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('gm_user');
+    setShowProfile(false); // Close modal on logout, or keep it open to show login screen
   };
 
   const generateSignal = async () => {
@@ -321,11 +425,14 @@ const App: React.FC = () => {
     window.open(url, "_blank");
   };
 
-  if (!booted) return <BootSequence onComplete={() => setBooted(true)} />;
-
   return (
     <div className="min-h-screen bg-neo-darker text-neo-green font-mono selection:bg-neo-green selection:text-black scanlines relative overflow-hidden flex flex-col transition-colors duration-300">
       
+      {/* Intro Sequence Overlay - Renders on top of everything until booted is true and animation finishes */}
+      <AnimatePresence>
+        {!booted && <OpusIntro onComplete={() => setBooted(true)} />}
+      </AnimatePresence>
+
       {/* Background */}
       <div className="fixed inset-0 bg-grid-pattern bg-[length:40px_40px] opacity-10 animate-grid-move pointer-events-none" />
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neo-green/10 via-transparent to-transparent opacity-60 pointer-events-none" />
@@ -558,6 +665,8 @@ const App: React.FC = () => {
         onClose={() => setShowProfile(false)} 
         user={user}
         onLogin={handleLogin}
+        onLogout={handleLogout}
+        isLoggingIn={isLoggingIn}
       />
       {showDictionary && <LingoDictionary onClose={() => setShowDictionary(false)} />}
 
