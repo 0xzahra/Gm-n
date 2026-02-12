@@ -25,12 +25,15 @@ import {
   Palette,
   Bookmark,
   Share2,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Clock,
+  Filter,
+  ArrowUpDown
 } from "lucide-react";
 import { NeonButton } from "./components/NeonButton";
 import { ScanEffect } from "./components/ScanEffect";
 import { analyzeImageAndGenerateCaptions, generateCryptoImage } from "./services/geminiService";
-import { SignalMode, GeneratedCaption, UserProfile, LingoDefinition, ImageStyle, SavedTemplate } from "./types";
+import { SignalMode, GeneratedCaption, UserProfile, LingoDefinition, ImageStyle, SavedTemplate, HistoryItem } from "./types";
 import { WALLETS, SHORTCUTS, LINGO_DICTIONARY, WEB3_QUOTES } from "./constants";
 
 // --- CUSTOM ICONS ---
@@ -131,69 +134,169 @@ const UserProfileModal = ({
   user, 
   onLogin, 
   onLogout, 
-  isLoggingIn 
+  isLoggingIn,
+  history 
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
   user: UserProfile | null, 
   onLogin: (provider: 'google' | 'twitter') => void,
   onLogout: () => void,
-  isLoggingIn: boolean
+  isLoggingIn: boolean,
+  history: HistoryItem[]
 }) => {
+  const [activeTab, setActiveTab] = useState<'IDENTITY' | 'HISTORY'>('IDENTITY');
+  const [filterMode, setFilterMode] = useState<'ALL' | 'GM' | 'GN'>('ALL');
+  const [sortOrder, setSortOrder] = useState<'NEWEST' | 'OLDEST'>('NEWEST');
+
   if (!isOpen) return null;
+
+  const filteredHistory = history
+    .filter(item => filterMode === 'ALL' || item.mode === filterMode)
+    .sort((a, b) => sortOrder === 'NEWEST' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp);
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-neo-black border border-neo-green/30 p-8 max-w-md w-full hud-panel relative shadow-neon">
-        <button onClick={onClose} className="absolute top-4 right-4 text-neo-green/50 hover:text-neo-green"><X size={20} /></button>
-        {!user ? (
-          <div className="text-center space-y-6">
-            <User size={48} className="mx-auto text-neo-green" />
-            <h2 className="text-xl font-bold tracking-widest text-neo-green">AUTHENTICATE</h2>
-            <p className="text-sm text-neo-green/60">Connect to sync your signal history and preferences.</p>
-            <div className="space-y-3">
-              <button 
-                onClick={() => onLogin('google')}
-                disabled={isLoggingIn}
-                type="button"
-                className="w-full bg-white text-black font-bold py-3 px-4 flex items-center justify-center gap-2 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoggingIn ? <RefreshCw className="animate-spin" size={16}/> : <div className="w-4 h-4 rounded-full bg-blue-500" />} 
-                {isLoggingIn ? "CONNECTING..." : "Continue with Google"}
-              </button>
-              <button 
-                onClick={() => onLogin('twitter')}
-                disabled={isLoggingIn}
-                type="button"
-                className="w-full bg-black border border-neo-green/50 text-neo-green font-bold py-3 px-4 flex items-center justify-center gap-2 hover:bg-neo-green/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoggingIn ? <RefreshCw className="animate-spin" size={16}/> : <Twitter size={16} />} 
-                {isLoggingIn ? "CONNECTING..." : "Continue with 𝕏"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center space-y-6">
-            <img src={user.avatar} alt="Avatar" className="w-24 h-24 rounded-full mx-auto border-2 border-neo-green shadow-neon" />
-            <div>
-              <h2 className="text-2xl font-bold text-neo-green">{user.name}</h2>
-              <p className="text-neo-green/60 text-sm font-mono">@{user.handle}</p>
-            </div>
-            <div className="bg-neo-green/5 p-4 border border-neo-green/20 text-left">
-              <div className="text-xs uppercase opacity-50 mb-2 font-bold tracking-wider">Operator Status</div>
-              <div className="flex items-center gap-2 text-sm font-bold text-neo-green">
-                 <div className="w-2 h-2 bg-neo-green rounded-full animate-pulse shadow-[0_0_10px_#00FF41]" />
-                 ACTIVE // {user.provider === 'google' ? 'GOOGLE_AUTH' : 'X_AUTH'}
+      <div className="bg-neo-black border border-neo-green/30 max-w-2xl w-full h-[80vh] flex flex-col hud-panel relative shadow-neon">
+        <button onClick={onClose} className="absolute top-4 right-4 text-neo-green/50 hover:text-neo-green z-10"><X size={20} /></button>
+        
+        <div className="flex border-b border-neo-green/20 p-6 pb-0 gap-6">
+          <button 
+            onClick={() => setActiveTab('IDENTITY')}
+            className={`pb-4 font-bold tracking-widest text-sm transition-colors ${activeTab === 'IDENTITY' ? 'text-neo-green border-b-2 border-neo-green' : 'text-neo-green/40 hover:text-neo-green'}`}
+          >
+            IDENTITY_PROTOCOL
+          </button>
+          <button 
+            onClick={() => setActiveTab('HISTORY')}
+            className={`pb-4 font-bold tracking-widest text-sm transition-colors ${activeTab === 'HISTORY' ? 'text-neo-green border-b-2 border-neo-green' : 'text-neo-green/40 hover:text-neo-green'}`}
+          >
+            SIGNAL_HISTORY ({history.length})
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          {activeTab === 'IDENTITY' && (
+            !user ? (
+              <div className="flex flex-col items-center justify-center h-full space-y-6">
+                <User size={48} className="text-neo-green" />
+                <h2 className="text-xl font-bold tracking-widest text-neo-green">AUTHENTICATE</h2>
+                <p className="text-sm text-neo-green/60 max-w-xs text-center">Connect to sync your signal history and preferences across devices.</p>
+                <div className="space-y-3 w-full max-w-xs">
+                  <button 
+                    onClick={() => onLogin('google')}
+                    disabled={isLoggingIn}
+                    type="button"
+                    className="w-full bg-white text-black font-bold py-3 px-4 flex items-center justify-center gap-2 hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                  >
+                    {isLoggingIn ? <RefreshCw className="animate-spin" size={16}/> : <div className="w-4 h-4 rounded-full bg-blue-500" />} 
+                    {isLoggingIn ? "CONNECTING..." : "Continue with Google"}
+                  </button>
+                  <button 
+                    onClick={() => onLogin('twitter')}
+                    disabled={isLoggingIn}
+                    type="button"
+                    className="w-full bg-black border border-neo-green/50 text-neo-green font-bold py-3 px-4 flex items-center justify-center gap-2 hover:bg-neo-green/10 disabled:opacity-50 transition-colors"
+                  >
+                    {isLoggingIn ? <RefreshCw className="animate-spin" size={16}/> : <Twitter size={16} />} 
+                    {isLoggingIn ? "CONNECTING..." : "Continue with 𝕏"}
+                  </button>
+                </div>
               </div>
+            ) : (
+              <div className="flex flex-col items-center space-y-6 pt-10">
+                <img src={user.avatar} alt="Avatar" className="w-32 h-32 rounded-full border-4 border-neo-green shadow-[0_0_20px_#00FF41]" />
+                <div className="text-center">
+                  <h2 className="text-3xl font-black text-neo-green mb-1">{user.name}</h2>
+                  <p className="text-neo-green/60 font-mono">@{user.handle}</p>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-4 w-full max-w-md mt-6">
+                   <div className="bg-neo-green/5 border border-neo-green/20 p-3 text-center">
+                     <div className="text-2xl font-bold text-neo-green">{history.length}</div>
+                     <div className="text-[10px] uppercase text-neo-green/50">Signals</div>
+                   </div>
+                   <div className="bg-neo-green/5 border border-neo-green/20 p-3 text-center">
+                     <div className="text-2xl font-bold text-neo-green">
+                       {history.filter(h => h.mode === 'GM').length}
+                     </div>
+                     <div className="text-[10px] uppercase text-neo-green/50">GM Count</div>
+                   </div>
+                   <div className="bg-neo-green/5 border border-neo-green/20 p-3 text-center">
+                     <div className="text-2xl font-bold text-neo-green">
+                       {history.filter(h => h.mode === 'GN').length}
+                     </div>
+                     <div className="text-[10px] uppercase text-neo-green/50">GN Count</div>
+                   </div>
+                </div>
+
+                <div className="w-full max-w-md pt-8">
+                  <button 
+                    onClick={onLogout}
+                    type="button"
+                    className="w-full border border-red-500/50 text-red-500 font-bold py-3 px-4 hover:bg-red-500/10 transition-colors uppercase text-xs tracking-widest flex items-center justify-center gap-2"
+                  >
+                    <LogOut size={14} /> Disconnect
+                  </button>
+                </div>
+              </div>
+            )
+          )}
+
+          {activeTab === 'HISTORY' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex gap-2">
+                  {(['ALL', 'GM', 'GN'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setFilterMode(m)}
+                      className={`text-[10px] px-2 py-1 border ${filterMode === m ? 'bg-neo-green text-neo-black border-neo-green' : 'text-neo-green/50 border-neo-green/20'}`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => setSortOrder(prev => prev === 'NEWEST' ? 'OLDEST' : 'NEWEST')}
+                  className="flex items-center gap-1 text-[10px] text-neo-green/50 hover:text-neo-green"
+                >
+                  <ArrowUpDown size={12} /> {sortOrder}
+                </button>
+              </div>
+
+              {filteredHistory.length === 0 ? (
+                <div className="text-center py-20 text-neo-green/30 italic">NO DATA FOUND</div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {filteredHistory.map((item) => (
+                    <div key={item.id} className="bg-neo-green/5 border border-neo-green/10 p-4 flex gap-4">
+                      {item.imageData ? (
+                         <img src={item.imageData} className="w-20 h-20 object-cover border border-neo-green/20" />
+                      ) : (
+                        <div className="w-20 h-20 bg-neo-black border border-neo-green/10 flex items-center justify-center text-neo-green/20">
+                          <Clock size={20} />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                         <div className="flex justify-between items-start mb-1">
+                           <span className="text-xs font-bold text-neo-green">{item.mode} // {new Date(item.timestamp).toLocaleDateString()}</span>
+                           <span className="text-[10px] text-neo-green/40">{new Date(item.timestamp).toLocaleTimeString()}</span>
+                         </div>
+                         <p className="text-xs text-neo-green/70 line-clamp-2 italic">"{item.context}"</p>
+                         <div className="mt-2 flex gap-1 overflow-x-auto scrollbar-hide">
+                           {item.captions.slice(0, 3).map((c, i) => (
+                             <span key={i} className="text-[9px] border border-neo-green/20 px-1 py-0.5 text-neo-green/50 whitespace-nowrap">{c.mood}</span>
+                           ))}
+                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <button 
-              onClick={onLogout}
-              type="button"
-              className="w-full border border-red-500/50 text-red-500 font-bold py-3 px-4 hover:bg-red-500/10 transition-colors uppercase text-xs tracking-widest flex items-center justify-center gap-2"
-            >
-              <LogOut size={14} /> Disconnect
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
@@ -301,9 +404,9 @@ const App: React.FC = () => {
   
   // Per-caption image generation & Broadcast menu UI state
   const [activeImageGenId, setActiveImageGenId] = useState<string | null>(null);
-  const [activeBroadcastId, setActiveBroadcastId] = useState<string | null>(null);
 
   const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeTab, setActiveTab] = useState<'GENERATED' | 'SAVED'>('GENERATED');
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -311,7 +414,6 @@ const App: React.FC = () => {
   const [showDictionary, setShowDictionary] = useState(false);
   const [randomQuote, setRandomQuote] = useState(WEB3_QUOTES[0]);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [sharingId, setSharingId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -323,11 +425,15 @@ const App: React.FC = () => {
   useEffect(() => {
     const savedUser = localStorage.getItem('gm_user');
     const savedTmpls = localStorage.getItem('gm_templates');
+    const savedHistory = localStorage.getItem('gm_history');
     if (savedUser) {
       try { setUser(JSON.parse(savedUser)); } catch (e) { console.error(e); }
     }
     if (savedTmpls) {
       try { setSavedTemplates(JSON.parse(savedTmpls)); } catch (e) { console.error(e); }
+    }
+    if (savedHistory) {
+      try { setHistory(JSON.parse(savedHistory)); } catch (e) { console.error(e); }
     }
   }, []);
 
@@ -376,17 +482,17 @@ const App: React.FC = () => {
     setUser(newUser);
     localStorage.setItem('gm_user', JSON.stringify(newUser));
     setIsLoggingIn(false);
-    setShowProfile(false);
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('gm_user');
-    setShowProfile(false);
   };
 
   const generateSignal = async () => {
-    if (!image) return;
+    // Only block if NEITHER image nor tags are present
+    if (!image && selectedTags.length === 0) return;
+    
     setIsScanning(true);
     setCaptions([]);
     setActiveTab('GENERATED');
@@ -394,14 +500,34 @@ const App: React.FC = () => {
     try {
       const tagLabels = selectedTags.map(id => SHORTCUTS.find(s => s.id === id)?.label || "");
       
-      // Add a 20s timeout to prevent infinite loading state
       const analysisPromise = analyzeImageAndGenerateCaptions(image, mode, tagLabels);
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 20000));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 60000));
       
       const result = await Promise.race([analysisPromise, timeoutPromise]) as any;
       
+      const enrichedCaptions: GeneratedCaption[] = result.captions.map((c: any) => ({
+        ...c,
+        likeCount: Math.floor(Math.random() * 100) + 5,
+        dislikeCount: Math.floor(Math.random() * 10),
+      }));
+
       setDetectedContext(result.context);
-      setCaptions(result.captions);
+      setCaptions(enrichedCaptions);
+
+      // Add to history
+      const newHistoryItem: HistoryItem = {
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        mode,
+        context: result.context,
+        captions: enrichedCaptions,
+        // Only save image if it exists and is less than ~500kb
+        imageData: (image && image.length < 500000) ? image : undefined
+      };
+      const updatedHistory = [newHistoryItem, ...history].slice(0, 20); // Keep last 20
+      setHistory(updatedHistory);
+      localStorage.setItem('gm_history', JSON.stringify(updatedHistory));
+
     } catch (error) {
       console.error("Signal Generation Failed:", error);
       setDetectedContext("System Error - Try Again");
@@ -437,27 +563,8 @@ const App: React.FC = () => {
     setTimeout(() => setCopiedWallet(null), 2000);
   };
 
-  const handleShare = async (platform: 'twitter' | 'farcaster' | 'zora', text: string, imageUrl?: string) => {
-     setActiveBroadcastId(null); // Close menu
-     
-     if (platform === 'zora') {
-        const mockMintLink = `https://zora.co/collect/base:0x7d239102489569209581023891023${Math.floor(Math.random() * 1000)}`;
-        copyToClipboard(mockMintLink, 'link_copied');
-        return;
-     }
-
+  const handleShare = async (platform: 'twitter' | 'farcaster', text: string, imageUrl?: string) => {
      if (platform === 'twitter') {
-        if (imageUrl) {
-          try {
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            if (typeof ClipboardItem !== "undefined") {
-              await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-              setCopiedWallet("image_copied");
-            }
-          } catch (e) { console.warn("Image copy failed", e); }
-        }
-        
         const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
         window.open(url, "_blank");
      }
@@ -469,10 +576,20 @@ const App: React.FC = () => {
   };
 
   const handleLike = (id: string) => {
-    setCaptions(prev => prev.map(c => c.id === id ? { ...c, liked: !c.liked, disliked: false } : c));
+    setCaptions(prev => prev.map(c => c.id === id ? { 
+      ...c, 
+      liked: !c.liked, 
+      disliked: false,
+      likeCount: !c.liked ? c.likeCount + 1 : c.likeCount - 1
+    } : c));
   };
   const handleDislike = (id: string) => {
-    setCaptions(prev => prev.map(c => c.id === id ? { ...c, disliked: !c.disliked, liked: false } : c));
+    setCaptions(prev => prev.map(c => c.id === id ? { 
+      ...c, 
+      disliked: !c.disliked, 
+      liked: false,
+      dislikeCount: !c.disliked ? c.dislikeCount + 1 : c.dislikeCount - 1
+    } : c));
   };
   const saveTemplate = (text: string) => {
     const newTemplate: SavedTemplate = { id: Date.now().toString(), text, timestamp: Date.now() };
@@ -487,6 +604,9 @@ const App: React.FC = () => {
     setSavedTemplates(updated);
     localStorage.setItem('gm_templates', JSON.stringify(updated));
   };
+  
+  // Determine if generation is possible (Image OR Tags)
+  const canGenerate = !!image || selectedTags.length > 0;
 
   return (
     <div className="min-h-screen bg-neo-darker text-neo-green font-mono selection:bg-neo-green selection:text-black relative overflow-hidden flex flex-col transition-colors duration-300">
@@ -583,16 +703,16 @@ const App: React.FC = () => {
                   <input ref={fileInputRef} type="file" onChange={handleFileSelect} accept="image/*" className="hidden" />
                   <div className="flex flex-col items-center justify-center gap-2 text-neo-green/50">
                     <Upload size={24} />
-                    <span className="text-xs">UPLOAD IMAGE (REQUIRED)</span>
+                    <span className="text-xs">UPLOAD IMAGE (OPTIONAL)</span>
                   </div>
                 </div>
              ) : (
-               <div className="relative aspect-video bg-neo-black border border-neo-green/30 overflow-hidden select-none">
+               <div className="relative aspect-video bg-neo-black border border-neo-green/30 overflow-hidden select-none z-30">
                  <img src={image} draggable="false" className="w-full h-full object-contain opacity-80" />
                  <button 
                     type="button"
                     onClick={() => setImage(null)}
-                    className="absolute top-2 right-2 bg-black/80 text-red-500 p-1 rounded-sm z-30 cursor-pointer"
+                    className="absolute top-2 right-2 bg-black/80 text-red-500 p-1 rounded-sm z-30 cursor-pointer hover:bg-black"
                   >
                     <X size={14} />
                   </button>
@@ -600,15 +720,22 @@ const App: React.FC = () => {
                </div>
              )}
              
-             <NeonButton 
-               onClick={generateSignal} 
-               disabled={isScanning || !image}
-               flashing={isScanning}
-               className="w-full flex items-center justify-center gap-2 z-30"
-             >
-               {isScanning ? <Cpu className="animate-spin" /> : <Zap />}
-               {isScanning ? "PROCESSING..." : "GENERATE GREETINGS"}
-             </NeonButton>
+             <div className="relative z-50 pt-2">
+                <NeonButton 
+                  onClick={generateSignal} 
+                  disabled={isScanning || !canGenerate}
+                  flashing={isScanning}
+                  className={`w-full flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 ${!canGenerate ? 'opacity-70' : 'opacity-100 shadow-[0_0_15px_rgba(0,255,65,0.4)]'}`}
+                >
+                  {isScanning ? <Cpu className="animate-spin" /> : <Zap className={image ? "fill-current" : ""} />}
+                  {isScanning 
+                    ? "PROCESSING SIGNAL..." 
+                    : !canGenerate 
+                      ? "UPLOAD IMAGE OR SELECT TAGS" 
+                      : "GENERATE GREETINGS"
+                  }
+                </NeonButton>
+             </div>
           </div>
         </div>
 
@@ -646,13 +773,21 @@ const App: React.FC = () => {
                         <span className="text-xs bg-neo-green/20 text-neo-green px-2 py-0.5 font-bold uppercase border border-neo-green/20 select-none">
                           {cap.mood}
                         </span>
-                        <div className="flex gap-1">
-                          <button type="button" onClick={() => handleLike(cap.id)} className={`p-1.5 hover:bg-neo-green/10 transition-colors ${cap.liked ? 'text-neo-green' : 'text-neo-green/30'}`}>
-                            <ThumbsUp size={14} />
-                          </button>
-                          <button type="button" onClick={() => handleDislike(cap.id)} className={`p-1.5 hover:bg-neo-green/10 transition-colors ${cap.disliked ? 'text-red-500' : 'text-neo-green/30'}`}>
-                            <ThumbsDown size={14} />
-                          </button>
+                        <div className="flex gap-4 items-center">
+                          <div className="flex gap-1 items-center">
+                            <button type="button" onClick={() => handleLike(cap.id)} className={`p-1.5 hover:bg-neo-green/10 transition-colors ${cap.liked ? 'text-neo-green' : 'text-neo-green/30'}`}>
+                              <ThumbsUp size={14} />
+                            </button>
+                            <span className="text-[10px] text-neo-green/50">{cap.likeCount}</span>
+                          </div>
+                          
+                          <div className="flex gap-1 items-center">
+                            <button type="button" onClick={() => handleDislike(cap.id)} className={`p-1.5 hover:bg-neo-green/10 transition-colors ${cap.disliked ? 'text-red-500' : 'text-neo-green/30'}`}>
+                              <ThumbsDown size={14} />
+                            </button>
+                            <span className="text-[10px] text-neo-green/50">{cap.dislikeCount}</span>
+                          </div>
+
                           <button type="button" onClick={() => saveTemplate(cap.text)} className="p-1.5 hover:bg-neo-green/10 text-neo-green/30 hover:text-neo-green transition-colors" title="Save Template">
                             <Bookmark size={14} />
                           </button>
@@ -678,103 +813,77 @@ const App: React.FC = () => {
                         </motion.div>
                       )}
 
-                      <div className="flex gap-3 relative">
-                        {/* Image Generator Button */}
-                        <div className="relative">
-                          {!cap.imageUrl && !cap.isGeneratingImage && (
-                            <button
-                               type="button"
-                               onClick={() => setActiveImageGenId(activeImageGenId === cap.id ? null : cap.id)}
-                               className={`h-full px-3 border border-neo-green/30 hover:bg-neo-green/10 text-neo-green/70 hover:text-neo-green transition-colors flex items-center justify-center ${activeImageGenId === cap.id ? 'bg-neo-green/10 text-neo-green' : ''}`}
-                               title="Generate Art"
-                            >
-                               <Palette size={18} />
-                            </button>
-                          )}
-                          
-                          {cap.isGeneratingImage && (
-                             <div className="h-full px-3 flex items-center justify-center text-neo-green animate-pulse">
-                               <RefreshCw size={18} className="animate-spin" />
-                             </div>
-                          )}
-
-                          <AnimatePresence>
-                            {activeImageGenId === cap.id && !cap.imageUrl && (
-                                <motion.div 
-                                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                  className="absolute bottom-full left-0 mb-2 w-32 bg-neo-black border border-neo-green shadow-neon z-20 flex flex-col p-1 gap-1"
-                                >
-                                   {(['MEME', 'BEEPLE'] as ImageStyle[]).map(style => (
-                                     <button
-                                       key={style}
-                                       type="button"
-                                       onClick={() => handleGenerateCaptionImage(cap.id, style)}
-                                       className="text-[10px] py-2 px-2 hover:bg-neo-green hover:text-neo-black text-neo-green text-left font-bold transition-colors uppercase"
-                                     >
-                                       {style}
-                                     </button>
-                                   ))}
-                                </motion.div>
+                      <div className="flex flex-col gap-3">
+                        {/* Upper Controls: Image Gen, Copy */}
+                        <div className="flex gap-3 h-10">
+                          {/* Image Generator Button */}
+                          <div className="relative h-full">
+                            {!cap.imageUrl && !cap.isGeneratingImage && (
+                              <button
+                                 type="button"
+                                 onClick={() => setActiveImageGenId(activeImageGenId === cap.id ? null : cap.id)}
+                                 className={`h-full px-3 border border-neo-green/30 hover:bg-neo-green/10 text-neo-green/70 hover:text-neo-green transition-colors flex items-center justify-center ${activeImageGenId === cap.id ? 'bg-neo-green/10 text-neo-green' : ''}`}
+                                 title="Generate Art"
+                              >
+                                 <Palette size={18} />
+                              </button>
                             )}
-                          </AnimatePresence>
-                        </div>
+                            
+                            {cap.isGeneratingImage && (
+                               <div className="h-full px-3 flex items-center justify-center text-neo-green animate-pulse">
+                                 <RefreshCw size={18} className="animate-spin" />
+                               </div>
+                            )}
 
-                        {/* Copy Button */}
-                        <button 
-                          type="button"
-                          onClick={() => copyToClipboard(cap.text, `cap-${idx}`)}
-                          className="flex-1 border border-neo-green/30 hover:bg-neo-green hover:text-neo-black py-2 text-sm transition-colors flex items-center justify-center gap-2 text-neo-green"
-                        >
-                          {copiedWallet === `cap-${idx}` ? <CheckCircle size={14} /> : <Copy size={14} />} COPY
-                        </button>
-                        
-                        {/* Broadcast Menu */}
-                        <div className="relative flex-1">
+                            <AnimatePresence>
+                              {activeImageGenId === cap.id && !cap.imageUrl && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute bottom-full left-0 mb-2 w-32 bg-neo-black border border-neo-green shadow-neon z-20 flex flex-col p-1 gap-1"
+                                  >
+                                     {(['MEME', 'BEEPLE'] as ImageStyle[]).map(style => (
+                                       <button
+                                         key={style}
+                                         type="button"
+                                         onClick={() => handleGenerateCaptionImage(cap.id, style)}
+                                         className="text-[10px] py-2 px-2 hover:bg-neo-green hover:text-neo-black text-neo-green text-left font-bold transition-colors uppercase"
+                                       >
+                                         {style}
+                                       </button>
+                                     ))}
+                                  </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+
+                          {/* Copy Button */}
                           <button 
                             type="button"
-                            onClick={() => setActiveBroadcastId(activeBroadcastId === cap.id ? null : cap.id)}
-                            className={`w-full h-full bg-neo-green text-neo-black font-bold py-2 text-sm hover:bg-neo-black hover:text-neo-green transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-neo-green disabled:opacity-50 ${activeBroadcastId === cap.id ? 'bg-neo-black text-neo-green border-neo-green' : ''}`}
+                            onClick={() => copyToClipboard(cap.text, `cap-${idx}`)}
+                            className="flex-1 border border-neo-green/30 hover:bg-neo-green hover:text-neo-black text-sm transition-colors flex items-center justify-center gap-2 text-neo-green"
                           >
-                            <Share2 size={14} /> BROADCAST
+                            {copiedWallet === `cap-${idx}` ? <CheckCircle size={14} /> : <Copy size={14} />} COPY
                           </button>
-                          
-                          <AnimatePresence>
-                             {activeBroadcastId === cap.id && (
-                               <motion.div
-                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                 className="absolute bottom-full right-0 mb-2 w-full min-w-[160px] bg-neo-black border border-neo-green shadow-neon-strong z-30 flex flex-col"
-                               >
-                                  <div className="px-2 py-1 text-[10px] uppercase text-neo-green/50 border-b border-neo-green/20 font-bold tracking-widest">
-                                    Select Channel
-                                  </div>
-                                  <button 
-                                    type="button"
-                                    onClick={() => handleShare('twitter', cap.text, cap.imageUrl)}
-                                    className="flex items-center gap-3 px-3 py-3 hover:bg-neo-green hover:text-neo-black text-neo-green transition-colors text-xs font-bold uppercase"
-                                  >
-                                    <Twitter size={14} /> Post on 𝕏
-                                  </button>
-                                  <button 
-                                    type="button"
-                                    onClick={() => handleShare('farcaster', cap.text, cap.imageUrl)}
-                                    className="flex items-center gap-3 px-3 py-3 hover:bg-purple-500 hover:text-white text-purple-400 transition-colors text-xs font-bold uppercase border-t border-neo-green/10"
-                                  >
-                                    <FarcasterIcon size={14} /> Cast on Base
-                                  </button>
-                                  <button 
-                                    type="button"
-                                    onClick={() => handleShare('zora', cap.text, cap.imageUrl)}
-                                    className="flex items-center gap-3 px-3 py-3 hover:bg-blue-500 hover:text-white text-blue-400 transition-colors text-xs font-bold uppercase border-t border-neo-green/10"
-                                  >
-                                    <ZoraIcon size={14} /> Mint on Zora
-                                  </button>
-                               </motion.div>
-                             )}
-                          </AnimatePresence>
+                        </div>
+
+                        {/* Direct Share Buttons */}
+                        <div className="grid grid-cols-2 gap-3 h-10">
+                          <button 
+                             type="button"
+                             onClick={() => handleShare('twitter', cap.text, cap.imageUrl)}
+                             className="flex items-center justify-center gap-2 bg-black border border-neo-green/30 hover:bg-neo-green hover:text-neo-black text-neo-green transition-colors text-xs font-bold uppercase"
+                          >
+                             <Twitter size={14} /> Share on 𝕏
+                          </button>
+                          <button 
+                             type="button"
+                             onClick={() => handleShare('farcaster', cap.text, cap.imageUrl)}
+                             className="flex items-center justify-center gap-2 bg-purple-900/20 border border-purple-500/30 hover:bg-purple-500 hover:text-white text-purple-400 transition-colors text-xs font-bold uppercase"
+                          >
+                             <FarcasterIcon size={14} /> Cast
+                          </button>
                         </div>
                       </div>
                     </motion.div>
@@ -880,6 +989,7 @@ const App: React.FC = () => {
         onLogin={handleLogin}
         onLogout={handleLogout}
         isLoggingIn={isLoggingIn}
+        history={history}
       />
       {showDictionary && <LingoDictionary onClose={() => setShowDictionary(false)} />}
 

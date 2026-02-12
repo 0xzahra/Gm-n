@@ -23,8 +23,19 @@ export interface GeneratedCaption {
   mood: string;
   liked?: boolean;
   disliked?: boolean;
+  likeCount: number;
+  dislikeCount: number;
   imageUrl?: string;
   isGeneratingImage?: boolean;
+}
+
+export interface HistoryItem {
+  id: string;
+  timestamp: number;
+  mode: SignalMode;
+  context: string;
+  captions: GeneratedCaption[];
+  imageData?: string; // Base64 image
 }
 
 export interface WalletAddress {

@@ -10,8 +10,6 @@ const getAiClient = () => {
       return new GoogleGenAI({ apiKey: process.env.API_KEY });
     } else {
       console.warn("API_KEY not found in process.env");
-      // If we can't find the key, we might be in a different env or it's missing.
-      // Returning null will trigger fallback.
       return null;
     }
   } catch (error) {
@@ -22,7 +20,7 @@ const getAiClient = () => {
 
 // Image Analysis Function
 export const analyzeImageAndGenerateCaptions = async (
-  base64Image: string,
+  base64Image: string | null,
   mode: SignalMode,
   tags: string[] = []
 ): Promise<{ context: string; captions: GeneratedCaption[] }> => {
@@ -30,58 +28,84 @@ export const analyzeImageAndGenerateCaptions = async (
   if (!ai) return fallbackResponse(mode);
 
   try {
+    const hasImage = !!base64Image;
     const contextStr = tags.length > 0 ? `User context tags: ${tags.join(", ")}.` : "";
     
+    let parts: any[] = [];
+    
+    // If image exists, add it to parts
+    if (base64Image) {
+        let mimeType = "image/jpeg";
+        try {
+          const match = base64Image.match(/data:([^;]+);base64,/);
+          if (match) mimeType = match[1];
+        } catch (e) {
+          console.warn("Could not extract mimeType", e);
+        }
+        parts.push({ inlineData: { mimeType: mimeType, data: base64Image.split(",")[1] } });
+    }
+    
+    // Removing strict JSON schema to avoid timeouts on multimodal requests
+    // Asking for raw JSON in the text prompt instead
     const prompt = `
       You are a crypto-native creative technologist.
-      Analyze the image. Generate 6 witty, crypto-culture relevant captions for a "${mode}" post.
+      ${hasImage ? "Analyze the provided image and generate" : "Generate"} 6 witty, crypto-culture relevant captions for a "${mode}" post.
       ${contextStr}
+      ${!hasImage ? "Since no image is provided, rely strictly on the context tags and the signal mode (GM/GN) to create specific, high-quality vibes." : ""}
       
       Context for "GM": High energy, builder, "shipping", wagmi.
       Context for "GN": Hopium, reflection, "we made it", rest.
       
-      Output JSON: { detectedContext: string, captions: [{text, mood}] }
+      RETURN ONLY RAW JSON. NO MARKDOWN. NO CODE BLOCKS.
+      Structure:
+      {
+        "detectedContext": "string summary of ${hasImage ? "image analysis" : "context tags"}",
+        "captions": [
+          {"text": "caption 1", "mood": "mood 1"},
+          {"text": "caption 2", "mood": "mood 2"}
+        ]
+      }
     `;
 
-    // Using gemini-3-flash-preview for faster response on text/multimodal tasks
+    parts.push({ text: prompt });
+
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
-        parts: [
-          { inlineData: { mimeType: "image/jpeg", data: base64Image.split(",")[1] } },
-          { text: prompt },
-        ],
+        parts: parts,
       },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            detectedContext: { type: Type.STRING },
-            captions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: { text: { type: Type.STRING }, mood: { type: Type.STRING } },
-              },
-            },
-          },
-        },
-      },
+      // Config removed to prevent schema validation hangs
     });
 
     let jsonString = response.text || "{}";
-    // Clean up markdown if present
-    jsonString = jsonString.replace(/```json|```/g, '').trim();
     
-    const parsed = JSON.parse(jsonString);
-    const captions = (parsed.captions || []).map((c: any, i: number) => ({
+    // Robust JSON cleanup
+    jsonString = jsonString.replace(/```json|```/g, '').trim();
+    const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonString = jsonMatch[0];
+    }
+    
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch (e) {
+      console.error("JSON Parse Error", e);
+      // Try a simpler repair if it fails
+      parsed = { detectedContext: "Analysis Partial", captions: [] };
+    }
+
+    const captions: GeneratedCaption[] = (parsed.captions || []).map((c: any, i: number) => ({
       ...c,
-      id: `gen-${Date.now()}-${i}`
+      id: `gen-${Date.now()}-${i}`,
+      likeCount: 0,
+      dislikeCount: 0
     }));
 
+    if (captions.length === 0) throw new Error("No captions generated");
+
     return {
-      context: parsed.detectedContext || "Visual Signal",
+      context: parsed.detectedContext || (hasImage ? "Visual Signal" : "Tag Signal"),
       captions,
     };
   } catch (error) {
@@ -143,14 +167,14 @@ export const generateCryptoImage = async (
   }
 }
 
-const fallbackResponse = (mode: SignalMode) => ({
+const fallbackResponse = (mode: SignalMode): { context: string; captions: GeneratedCaption[] } => ({
   context: "Signal Interrupted",
   captions: [
-    { id: 'err1', text: `${mode}. Network congested. We build regardless.`, mood: "Stoic" },
-    { id: 'err2', text: `Manual ${mode} override initiated. Stay based.`, mood: "Manual" },
-    { id: 'err3', text: `Connection unstable. Conviction remains high. ${mode}.`, mood: "Glitch" },
-    { id: 'err4', text: `System reboot required. Still early. ${mode}.`, mood: "Tech" },
-    { id: 'err5', text: `Signals fading, but bags are heavy. ${mode}.`, mood: "Degen" },
-    { id: 'err6', text: `Offline mode active. Touch grass. ${mode}.`, mood: "Zen" },
+    { id: 'err1', text: `${mode}. Network congested. We build regardless.`, mood: "Stoic", likeCount: 0, dislikeCount: 0 },
+    { id: 'err2', text: `Manual ${mode} override initiated. Stay based.`, mood: "Manual", likeCount: 0, dislikeCount: 0 },
+    { id: 'err3', text: `Connection unstable. Conviction remains high. ${mode}.`, mood: "Glitch", likeCount: 0, dislikeCount: 0 },
+    { id: 'err4', text: `System reboot required. Still early. ${mode}.`, mood: "Tech", likeCount: 0, dislikeCount: 0 },
+    { id: 'err5', text: `Signals fading, but bags are heavy. ${mode}.`, mood: "Degen", likeCount: 0, dislikeCount: 0 },
+    { id: 'err6', text: `Offline mode active. Touch grass. ${mode}.`, mood: "Zen", likeCount: 0, dislikeCount: 0 },
   ],
 });
